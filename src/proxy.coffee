@@ -1,5 +1,5 @@
 {Adapter} = require 'hubot'
-path = require 'path'
+Path = require 'path'
 fs = require 'fs'
 
 CONFIG_FILE_NAME = 'adapter-proxy-config'
@@ -14,19 +14,25 @@ class AdapterProxy extends Adapter
   # For full documentation on how to use this proxy, check out the wiki.
   
   constructor: (@robot) ->
-    configFilePath = path.join(process.env.PWD, CONFIG_FILE_NAME + '.coffee')
+    configFilePath = Path.join(process.env.PWD, CONFIG_FILE_NAME + '.coffee')
     if not fs.existsSync configFilePath
-      configFilePath = path.join(process.env.PWD, CONFIG_FILE_NAME + '.js')
+      configFilePath = Path.join(process.env.PWD, CONFIG_FILE_NAME + '.js')
     if not fs.existsSync configFilePath
       throw new Error("#{CONFIG_FILE_NAME} must be in the root of the node project.")
     AdapterProxyConfig = require configFilePath
     @config = new AdapterProxyConfig
+    adapterDirectory = Path.join __dirname, "..", "..", "hubot", "src", "adapters"
+    console.log adapterDirectory
     adapterPath = if @config.adapter in HUBOT_DEFAULT_ADAPTERS
-      "#{path}/#{@config.adapter}"
+      "#{adapterDirectory}/#{@config.adapter}"
     else
       "hubot-#{@config.adapter}"
     @adapter = require(adapterPath).use @
     @adapter.robot = @robot
+
+    @constructor::receive = @adapter.receive
+    @adapter.receive = @interceptReceive
+
 
   # Overridden
   send: (envelope, strings...) ->
@@ -82,10 +88,11 @@ class AdapterProxy extends Adapter
     @config.events.didExit?(@adapter)
 
   # Overridden
-  receive: (message) ->
+  interceptReceive: (message) =>
+    debugger
     if not @config.events.shouldReceive or @config.events.shouldReceive(@adapter, message)
       @config.events.willReceive?(@adapter, message)
-      @adapter.receive message
+      @receive message
       @config.events.didReceive?(@adapter, message)
 
   # Overridden
